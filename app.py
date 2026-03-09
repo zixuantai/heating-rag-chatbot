@@ -4,7 +4,7 @@ Streamlit应用入口
 """
 import streamlit as st
 from services.knowledge_base import KnowledgeBaseService
-from chat.chat_service import ChatService
+from chat.core.chat_service import ChatService
 import config
 
 
