@@ -10,6 +10,7 @@ from utils.file_utils import (
     get_string_md5, 
     check_md5_in_file, 
     save_md5_to_file,
+    remove_md5_from_file,
     ensure_dir
 )
 from utils.document_parser import parse_document
@@ -137,8 +138,20 @@ class KnowledgeBaseService:
             
             self.vector_service.add_texts(texts, metadatas)
             
-            # 保存MD5
+            # 保存 MD5
             save_md5_to_file(md5_hex, config.MD5_FILE)
+            
+            # 保存文件元数据
+            file_metadata = self._load_metadata()
+            file_metadata.append({
+                "filename": filename,
+                "file_type": metadata["file_type"],
+                "file_size": len(data),
+                "chunk_count": len(knowledge_chunks),
+                "create_time": metadata["create_time"],
+                "md5": md5_hex
+            })
+            self._save_metadata(file_metadata)
             
             return {
                 "status": "success", 
@@ -201,8 +214,9 @@ class KnowledgeBaseService:
             file_metadata = [f for f in file_metadata if f["filename"] != filename]
             self._save_metadata(file_metadata)
             
-            # 从 MD5 文件移除（可选，因为内容已删除）
-            # 这里简化处理，不修改 MD5 文件
+            # 从 MD5 文件中移除该文件的 MD5 记录
+            if md5:
+                remove_md5_from_file(md5, config.MD5_FILE)
             
             return {
                 "status": "success", 

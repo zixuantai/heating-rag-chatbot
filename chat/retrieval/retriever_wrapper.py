@@ -9,6 +9,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from services.knowledge_base import KnowledgeBaseService
 from vector_db.vector_store_service import VectorStoreService
+from .reranker import reranker
+from .query_rewriter import query_rewriter
 import config
 import os
 
@@ -70,10 +72,12 @@ class HybridRetriever:
                     'score': self.bm25_weight * (1.0 / (i + 1))
                 }
         
-        # 按分数排序
+        # 按分数排序，返回更多文档供 Rerank 筛选
         sorted_docs = sorted(all_docs.values(), key=lambda x: x['score'], reverse=True)
         
-        return [item['doc'] for item in sorted_docs[:config.SIMILARITY_THRESHOLD]]
+        # 返回更多文档（用于 Rerank）
+        top_k = config.RETRIEVAL_TOP_K if config.USE_RERANK else config.SIMILARITY_THRESHOLD
+        return [item['doc'] for item in sorted_docs[:top_k]]
 
 
 class RetrieverWrapper:
@@ -143,7 +147,14 @@ class RetrieverWrapper:
     
     def retrieve(self, query: str) -> List[Document]:
         """
-        执行检索
+        执行检索（带 Rerank 重排序）
+        
+        完整流程：
+        1. Query 预处理/改写
+        2. 双路召回（向量 + BM25）
+        3. 加权融合
+        4. Rerank 重排序（如果启用）
+        5. 返回 Top-K
         
         Args:
             query: 查询文本
@@ -151,7 +162,47 @@ class RetrieverWrapper:
         Returns:
             List[Document]: 检索结果文档列表
         """
-        return self.retriever.invoke(query)
+        print(f"\n{'='*60}")
+        print(f"[检索] 开始检索流程")
+        print(f"{'='*60}")
+        
+        # 1. Query 预处理/改写
+        print(f"\n[Query] 原始查询：{query}")
+        
+        # 使用 LLM 进行 Query 改写
+        print(f"[Query] 正在使用 LLM 进行 Query 改写...")
+        rewritten_query = query_rewriter.rewrite(query)
+        print(f"[Query] 改写后的查询：{rewritten_query}")
+        
+        # 使用改写后的 query 进行检索
+        query = rewritten_query
+        
+        # 2. 双路召回
+        print(f"\n[召回] 开始双路召回...")
+        print(f"  - 向量检索：使用 Milvus 向量数据库（HNSW 索引）")
+        print(f"  - BM25 检索：使用全文检索")
+        
+        docs = self.retriever.invoke(query)
+        print(f"\n[召回] 召回文档数：{len(docs)}")
+        
+        # 3. 如果启用了 Rerank，进行重排序
+        if config.USE_RERANK and len(docs) > 0:
+            print(f"\n{'='*60}")
+            print(f"[Rerank] 启用 Rerank 重排序...")
+            print(f"{'='*60}")
+            try:
+                reranked_docs = reranker.rerank(query, docs, top_k=config.RERANK_TOP_K)
+                print(f"\n[检索] 最终返回 {len(reranked_docs)} 个文档")
+                return reranked_docs
+            except Exception as e:
+                print(f"\n[Rerank] 重排序失败：{e}，直接返回 Top-{config.SIMILARITY_THRESHOLD}")
+                return docs[:config.SIMILARITY_THRESHOLD]
+        else:
+            if not config.USE_RERANK:
+                print(f"\n[检索] 配置未启用 Rerank，直接返回 Top-{config.SIMILARITY_THRESHOLD}")
+            else:
+                print(f"\n[检索] 无召回文档，跳过 Rerank")
+            return docs[:config.SIMILARITY_THRESHOLD]
     
     def format_documents(self, docs: List[Document]) -> str:
         """

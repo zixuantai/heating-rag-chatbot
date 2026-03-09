@@ -64,5 +64,35 @@ milvus-data/
 # Chroma (旧数据库)
 chroma_db/
 
-# Test files (可选)
-# test_*.py
+# Model files (large binary files, should be downloaded locally)
+models/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# API Keys and Secrets (IMPORTANT!)
+*.key
+*.secret
+*.token
+*.credentials
+secrets/
+keys/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test files (optional)
+test_*.py

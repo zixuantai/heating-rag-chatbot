@@ -8,7 +8,7 @@ from chat.chat_history import (
     init_chat_database
 )
 from chat.memory import memory_manager
-from chat.retrieval import query_rewriter, retriever_wrapper
+from chat.retrieval import query_rewriter, retrieve, retriever_wrapper_instance
 from chat.prompt import PromptBuilder
 from .response_generator import ResponseGenerator
 
@@ -23,7 +23,8 @@ class ChatService:
         
         # 初始化组件
         self.response_generator = ResponseGenerator()
-        self.retriever = retriever_wrapper
+        self.retriever_func = retrieve  # 检索函数
+        self.retriever_instance = retriever_wrapper_instance  # 检索器实例（用于 format_documents）
         self.prompt_builder = PromptBuilder()
     
     def invoke(self, query: str, session_id: str = "user_001") -> str:
@@ -49,8 +50,8 @@ class ChatService:
             print(f"Query 重写：{query} → {rewritten_query}")
         
         # 3. 检索相关文档（使用重写后的 query）
-        docs = self.retriever.retrieve(rewritten_query)
-        context = self.retriever.format_documents(docs)
+        docs = self.retriever_func(rewritten_query)
+        context = self.retriever_instance.format_documents(docs)
         
         # 4. 获取记忆上下文
         memory_context = memory_manager.get_full_memory_context(session_id)
@@ -89,8 +90,8 @@ class ChatService:
             print(f"Query 重写：{query} → {rewritten_query}")
         
         # 3. 检索相关文档（使用重写后的 query）
-        docs = self.retriever.retrieve(rewritten_query)
-        context = self.retriever.format_documents(docs)
+        docs = self.retriever_func(rewritten_query)
+        context = self.retriever_instance.format_documents(docs)
         
         # 4. 获取记忆上下文
         memory_context = memory_manager.get_full_memory_context(session_id)

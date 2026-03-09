@@ -24,7 +24,13 @@ MD5_FILE = "./data/md5_hash.txt"
 # 检索配置
 SIMILARITY_THRESHOLD = 5  # 检索返回的文档数量
 
-# Milvus索引配置
+# Rerank 配置
+USE_RERANK = True  # 是否启用 Rerank（已启用）
+RERANK_MODEL_NAME = "./models/models/bce-reranker-base_v1"  # Rerank 模型（本地路径）
+RERANK_TOP_K = 5  # Rerank 后返回的文档数量
+RETRIEVAL_TOP_K = 15  # Rerank 前的召回数量（应该大于 RERANK_TOP_K）
+
+# Milvus 索引配置
 MILVUS_INDEX_TYPE = "HNSW"
 MILVUS_METRIC_TYPE = "COSINE"
 MILVUS_INDEX_PARAMS = {"M": 8, "efConstruction": 64}
