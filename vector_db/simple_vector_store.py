@@ -103,3 +103,24 @@ class SimpleVectorStore:
         self.vectors = []
         self.documents = []
         self.save_to_file()
+    
+    def delete_by_metadata(self, key: str, value: str) -> bool:
+        """根据元数据删除文档"""
+        try:
+            # 找到所有匹配的索引
+            indices_to_delete = []
+            for i, doc in enumerate(self.documents):
+                if doc.get('metadata', {}).get(key) == value:
+                    indices_to_delete.append(i)
+            
+            # 从后往前删除，避免索引变化
+            for idx in reversed(indices_to_delete):
+                del self.vectors[idx]
+                del self.documents[idx]
+            
+            # 保存更改
+            self.save_to_file()
+            
+            return len(indices_to_delete) > 0
+        except Exception as e:
+            return False
